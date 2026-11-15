@@ -1,13 +1,12 @@
-USD vs. local-currency WACC calculator (Streamlit)
-
-Data pulled live (with caching + refresh button):
-  * Damodaran  - U.S. industry unlevered betas (betas.xls)
-  * OECD       - statutory corporate income tax rates (Corporate Tax Statistics)
-  * Damodaran  - Baa2/BBB default spread, large non-financial service firms (ratings.html)
-  * Trading Economics - 10-year government bond yields (tradingeconomics.com/bonds)
-
-Every fetched number can be overridden manually in the sidebar.
-"""
+# USD vs. local-currency WACC calculator (Streamlit)
+#
+# Data pulled live (with caching + refresh button):
+#   * Damodaran  - U.S. industry unlevered betas (betas.xls)
+#   * OECD       - statutory corporate income tax rates (Corporate Tax Statistics)
+#   * Damodaran  - Baa2/BBB default spread, large non-financial service firms (ratings.html)
+#   * Trading Economics - 10-year government bond yields (tradingeconomics.com/bonds)
+#
+# Every fetched number can be overridden manually in the sidebar.
 
 import io
 import re
@@ -121,7 +120,7 @@ def norm_country(name):
 
 
 def to_num(x):
-    """First number found in a cell (handles '4.12%', '25.8a', NaN) or None."""
+    # First number found in a cell (handles '4.12%', '25.8a', NaN) or None.
     if x is None:
         return None
     if isinstance(x, (int, float)):
@@ -159,7 +158,7 @@ def locate_header(df, token, max_rows=40):
 
 
 def with_header_row(t):
-    """pandas moves <th> cells into the column labels; put them back as the first data row."""
+    # pandas moves <th> cells into the column labels; put them back as the first data row.
     cols = [
         " ".join(str(x) for x in c if "Unnamed" not in str(x)).strip()
         if isinstance(c, tuple) else str(c)
@@ -183,7 +182,7 @@ def find_year_header(t):
 
 
 def parse_oecd_tables(tables):
-    """Return {country_key: {country, rate (decimal), year}} using the latest year per country."""
+    # Return {country_key: {country, rate (decimal), year}} using the latest year per country.
     best = {}
     for t in tables:
         t = with_header_row(t)
@@ -214,7 +213,7 @@ def parse_oecd_tables(tables):
 
 
 def parse_te_tables(tables):
-    """Return {country_key: {country, yield (decimal), date}} from Trading Economics tables."""
+    # Return {country_key: {country, yield (decimal), date}} from Trading Economics tables.
     rows = {}
     for t in tables:
         t = t.copy()
@@ -258,7 +257,7 @@ def parse_te_tables(tables):
 
 
 def parse_spread_tables(tables):
-    """Find the Baa2/BBB row and return its spread as a decimal (last numeric cell)."""
+    # Find the Baa2/BBB row and return its spread as a decimal (last numeric cell).
     for t in tables:
         t = with_header_row(t).astype(object)
         for i in range(len(t)):
@@ -423,7 +422,7 @@ def fetch_yields():
 # Finance
 # ----------------------------------------------------------------------------
 def compute(beta_u, tax, erp, debt_w, rf, spread):
-    """CAPM cost of equity, rf+spread cost of debt, WACC (single currency)."""
+    # CAPM cost of equity, rf+spread cost of debt, WACC (single currency).
     de = debt_w / (1.0 - debt_w)
     beta_l = beta_u * (1.0 + (1.0 - tax) * de)
     ke = rf + beta_l * erp
@@ -438,7 +437,7 @@ def compute(beta_u, tax, erp, debt_w, rf, spread):
 
 
 def auto_foreign_spread(sp_us, rf_us, rf_f):
-    """Same real credit spread: USD spread scaled by the ratio of (1 + risk-free) rates."""
+    # Same real credit spread: USD spread scaled by the ratio of (1 + risk-free) rates.
     return sp_us * (1.0 + rf_f) / (1.0 + rf_us)
 
 
@@ -447,7 +446,7 @@ def auto_foreign_spread(sp_us, rf_us, rf_f):
 # ----------------------------------------------------------------------------
 def override_input(label, key, fetched, fallback, *, pct=True, lo=0.0, hi=100.0,
                    step=0.05, fmt="%.3f", toggle_label=None, missing_msg=None):
-    """Fetched value (disabled box) or a manual override. Returns (value, is_manual)."""
+    # Fetched value (disabled box) or a manual override. Returns (value, is_manual).
     unit = " (%)" if pct else ""
     if fetched is None:
         st.warning(missing_msg or f"No fetched value for {label.lower()} - please enter it manually.")
