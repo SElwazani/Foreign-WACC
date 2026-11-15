@@ -647,22 +647,49 @@ def main():
     st.table(table)
 
     # ------------------------------------------------------------------ assumptions
-    with st.expander("📘 Main assumptions & formulas", expanded=True):
-        st.markdown(
-            f"""
-- **Beta:** Damodaran's U.S. industry *unlevered* beta ({beta_u:.3f}{' - manual' if beta_man else ''}) is re-levered at the target capital structure:
-  `β_L = β_U × [1 + (1 − t) × D/E]`, with `D/E = debt share / (1 − debt share)` = {r_us['de']:.3f}. The same beta is used in both currencies.
-- **Cost of equity (CAPM):** `Ke = risk-free + β_L × ERP`. The risk-free rate is the 10-year government yield of the respective country
-  (U.S. {fmt_pct(rf_us)}, {country} {fmt_pct(rf_f)}); the **same ERP ({fmt_pct(erp)})** is applied in both currencies, so the gap between the two
-  currencies comes only from the risk-free rates and the credit spreads. For high-risk sovereigns the local yield also contains a sovereign default spread.
-- **Cost of debt:** `Kd = risk-free + BBB spread`. USD spread = Damodaran's Baa2/BBB spread for large non-financial service firms ({fmt_pct(sp_us)}{' - manual' if sp_us_man else ''}).
-  Foreign spread ({fmt_pct(sp_f)}{' - manual' if (sp_f_man and not is_us) else ''}) = {'the same as the USD spread (target country is the U.S.)' if is_us else 'manual override' if sp_f_man else 'auto: USD spread × (1 + local yield) / (1 + U.S. yield), i.e. the same real credit spread expressed in local-currency terms'}.
-- **Taxes:** one project tax rate for both currencies - **{tax_label}: {fmt_pct(tax)}** (OECD combined central + sub-central statutory rate unless overridden).
-  It is used in the re-levering formula and the interest tax shield (full deductibility is assumed).
-- **WACC:** `WACC = E% × Ke + D% × Kd × (1 − t)` with a target debt share of {fmt_pct(debt_w)} and the same weights in both currencies.
-- Simplifications: industry betas are U.S.-based averages; no country-specific equity risk adjustment; statutory (not effective/marginal) tax rates.
-"""
+    beta_note = " - manual" if beta_man else ""
+    sp_us_note = " - manual" if sp_us_man else ""
+    sp_f_note = " - manual" if (sp_f_man and not is_us) else ""
+    if is_us:
+        sp_f_desc = "the same as the USD spread (target country is the U.S.)"
+    elif sp_f_man:
+        sp_f_desc = "manual override"
+    else:
+        sp_f_desc = (
+            "auto: USD spread × (1 + local yield) / (1 + U.S. yield), "
+            "i.e. the same real credit spread expressed in local-currency terms"
         )
+    assumptions = "\n".join(
+        [
+            "- **Beta:** Damodaran's U.S. industry *unlevered* beta ("
+            + f"{beta_u:.3f}{beta_note}"
+            + ") is re-levered at the target capital structure: "
+            + "`β_L = β_U × [1 + (1 − t) × D/E]`, with `D/E = debt share / (1 − debt share)` = "
+            + f"{r_us['de']:.3f}. The same beta is used in both currencies.",
+            "- **Cost of equity (CAPM):** `Ke = risk-free + β_L × ERP`. The risk-free rate is the "
+            + "10-year government yield of the respective country "
+            + f"(U.S. {fmt_pct(rf_us)}, {country} {fmt_pct(rf_f)}); the **same ERP ({fmt_pct(erp)})** "
+            + "is applied in both currencies, so the gap between the two currencies comes only from "
+            + "the risk-free rates and the credit spreads. For high-risk sovereigns the local yield "
+            + "also contains a sovereign default spread.",
+            "- **Cost of debt:** `Kd = risk-free + BBB spread`. USD spread = Damodaran's Baa2/BBB "
+            + "spread for large non-financial service firms "
+            + f"({fmt_pct(sp_us)}{sp_us_note}). Foreign spread ({fmt_pct(sp_f)}{sp_f_note}) = "
+            + sp_f_desc
+            + ".",
+            "- **Taxes:** one project tax rate for both currencies - "
+            + f"**{tax_label}: {fmt_pct(tax)}** "
+            + "(OECD combined central + sub-central statutory rate unless overridden). "
+            + "It is used in the re-levering formula and the interest tax shield "
+            + "(full deductibility is assumed).",
+            "- **WACC:** `WACC = E% × Ke + D% × Kd × (1 − t)` with a target debt share of "
+            + f"{fmt_pct(debt_w)} and the same weights in both currencies.",
+            "- Simplifications: industry betas are U.S.-based averages; no country-specific equity "
+            + "risk adjustment; statutory (not effective/marginal) tax rates.",
+        ]
+    )
+    with st.expander("📘 Main assumptions & formulas", expanded=True):
+        st.markdown(assumptions)
 
     # ------------------------------------------------------------------ all-industry comparison
     st.subheader("All-industry comparison")
