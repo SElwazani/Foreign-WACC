@@ -1,6 +1,6 @@
 # USD vs. Local-Currency WACC Calculator
 
-A Streamlit app that estimates the cost of equity, cost of debt and WACC for a chosen industry in **U.S. dollars** and in the **local currency of a selected country**, side by side, using the same project tax rate, debt share and equity risk premium.
+A Streamlit app that estimates the cost of equity, cost of debt and WACC for a chosen industry in **U.S. dollars** and in the **local currency of a foreign target country**, side by side, using the same project tax rate, debt share and equity risk premium.
 
 ## Features
 
@@ -15,7 +15,7 @@ A Streamlit app that estimates the cost of equity, cost of debt and WACC for a c
 - **Manual overrides** for unlevered beta, U.S. and target-country tax rates, USD BBB spread, U.S. and target-country 10Y yields, and the foreign BBB spread (switch the override off to see the automatic calculation).
 - **Tax-rate switch** between the U.S. rate and the selected country's rate (one project tax rate used in both currencies).
 - **Side-by-side results**, an assumptions panel, an **all-industry comparison** (table + chart) and **downloads** (Excel workbook, CSVs).
-- **Defaults:** Software (System & Application), United States, U.S. tax rate, 6.5% ERP, 30% debt.
+- **Defaults:** Software (System & Application), Germany as the foreign target country (the U.S. is always the benchmark and cannot be the target), U.S. tax rate, 6.5% ERP, 30% debt.
 
 ## Files
 
@@ -51,7 +51,7 @@ WACC      = E% × Ke + D% × Kd × (1 − t)
 - Risk-free rate = 10Y government yield of the respective country (U.S. for USD, selected country for local currency).
 - Same unlevered beta, ERP, debt share and project tax rate in both currencies.
 - Foreign BBB spread (auto) = USD spread × (1 + local yield) / (1 + U.S. yield), i.e. the same real credit spread expressed in local-currency terms. It can be overridden manually.
-- When the selected country is the United States, both columns are identical by construction.
+- The United States is always the USD benchmark; the target country list contains foreign countries only.
 
 ## Notes and limitations
 
