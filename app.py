@@ -49,7 +49,8 @@ HEADERS = {
 CACHE_TTL = 6 * 3600  # seconds; the refresh button clears the cache immediately
 
 DEFAULT_INDUSTRY = "Software (System & Application)"
-DEFAULT_COUNTRY_KEY = "united states"
+US_KEY = "united states"  # the fixed USD benchmark
+DEFAULT_COUNTRY_KEY = "germany"  # default foreign target country
 DEFAULT_ERP_PCT = 6.5
 DEFAULT_DEBT_PCT = 30
 
@@ -526,7 +527,8 @@ def main():
     for src, field in ((yld_rows, "country"), (tax_rows, "country")):
         for k, v in src.items():
             names.setdefault(k, v[field])
-    names.setdefault(DEFAULT_COUNTRY_KEY, "United States")
+    names.pop(US_KEY, None)  # the U.S. is the benchmark, never the target
+    names.setdefault(DEFAULT_COUNTRY_KEY, "Germany")
     country_keys = sorted(names, key=lambda k: names[k].lower())
 
     # ------------------------------------------------------------------ sidebar
@@ -556,7 +558,6 @@ def main():
             format_func=lambda k: names[k],
         )
         country = names[ckey]
-        is_us = ckey == DEFAULT_COUNTRY_KEY
 
         erp = st.number_input("Equity risk premium (%)", 0.0, 25.0, DEFAULT_ERP_PCT,
                               step=0.1, format="%.2f") / 100.0
@@ -566,10 +567,10 @@ def main():
         beta_f = None
         if industries:
             beta_f = float(betas["df"].loc[betas["df"]["Industry"] == industry, "Unlevered beta"].iloc[0])
-        tax_us_f = tax_rows.get(DEFAULT_COUNTRY_KEY, {}).get("rate")
+        tax_us_f = tax_rows.get(US_KEY, {}).get("rate")
         tax_for_f = tax_rows.get(ckey, {}).get("rate")
         sp_us_f = spread.get("spread")
-        rf_us_f = yld_rows.get(DEFAULT_COUNTRY_KEY, {}).get("yield")
+        rf_us_f = yld_rows.get(US_KEY, {}).get("yield")
         rf_for_f = yld_rows.get(ckey, {}).get("yield")
 
         # Overrides
@@ -584,43 +585,33 @@ def main():
         tax_us, tax_us_man = override_input(
             "U.S. corporate tax rate", "tax_us", tax_us_f, 25.0, lo=0.0, hi=100.0, step=0.1)
 
-        if is_us:
-            st.info("Target country = United States, so the 'foreign' inputs mirror the U.S. inputs.")
-            rf_f, rf_f_man = rf_us, rf_us_man
-            tax_f, tax_f_man = tax_us, tax_us_man
-            sp_f, sp_f_man = sp_us, sp_us_man
-        else:
-            rf_f, rf_f_man = override_input(
-                f"{country} 10Y government yield", "rf_f", rf_for_f, 4.0,
-                lo=-10.0, hi=100.0, step=0.05)
-            tax_f, tax_f_man = override_input(
-                f"{country} corporate tax rate", "tax_f", tax_for_f, 25.0,
-                lo=0.0, hi=100.0, step=0.1)
-            sp_f, sp_f_man = override_input(
-                f"{country} BBB spread", "sp_f", auto_foreign_spread(sp_us, rf_us, rf_f), 1.5,
-                lo=0.0, hi=100.0, step=0.05,
-                toggle_label="Override foreign BBB spread (off = auto calculation)")
+        rf_f, rf_f_man = override_input(
+            f"{country} 10Y government yield", "rf_f", rf_for_f, 4.0,
+            lo=-10.0, hi=100.0, step=0.05)
+        tax_f, tax_f_man = override_input(
+            f"{country} corporate tax rate", "tax_f", tax_for_f, 25.0,
+            lo=0.0, hi=100.0, step=0.1)
+        sp_f, sp_f_man = override_input(
+            f"{country} BBB spread", "sp_f", auto_foreign_spread(sp_us, rf_us, rf_f), 1.5,
+            lo=0.0, hi=100.0, step=0.05,
+            toggle_label="Override foreign BBB spread (off = auto calculation)")
 
     # ------------------------------------------------------------------ tax switch
-    if is_us:
-        tax, tax_label = tax_us, "United States"
-        st.info("Project tax rate: U.S. rate (the selected country is the United States).")
-    else:
-        choice = st.radio(
-            "Project tax rate (used in both currencies)",
-            ["us", "for"],
-            format_func=lambda c: (
-                f"U.S. rate ({fmt_pct(tax_us)})" if c == "us" else f"{country} rate ({fmt_pct(tax_f)})"
-            ),
-            horizontal=True,
-            key="tax_choice",
-        )
-        tax, tax_label = (tax_us, "United States") if choice == "us" else (tax_f, country)
+    choice = st.radio(
+        "Project tax rate (used in both currencies)",
+        ["us", "for"],
+        format_func=lambda c: (
+            f"U.S. rate ({fmt_pct(tax_us)})" if c == "us" else f"{country} rate ({fmt_pct(tax_f)})"
+        ),
+        horizontal=True,
+        key="tax_choice",
+    )
+    tax, tax_label = (tax_us, "United States") if choice == "us" else (tax_f, country)
 
     # ------------------------------------------------------------------ results
     r_us = compute(beta_u, tax, erp, debt_w, rf_us, sp_us)
     r_f = compute(beta_u, tax, erp, debt_w, rf_f, sp_f)
-    local_label = f"{country} (local currency)" if not is_us else "United States (same as USD)"
+    local_label = f"{country} (local currency)"
 
     st.subheader(f"Results - {industry}")
     c1, c2 = st.columns(2)
@@ -648,10 +639,8 @@ def main():
     # ------------------------------------------------------------------ assumptions
     beta_note = " - manual" if beta_man else ""
     sp_us_note = " - manual" if sp_us_man else ""
-    sp_f_note = " - manual" if (sp_f_man and not is_us) else ""
-    if is_us:
-        sp_f_desc = "the same as the USD spread (target country is the U.S.)"
-    elif sp_f_man:
+    sp_f_note = " - manual" if sp_f_man else ""
+    if sp_f_man:
         sp_f_desc = "manual override"
     else:
         sp_f_desc = (
@@ -758,9 +747,9 @@ def main():
     def origin(manual):
         return "Manual" if manual else "Fetched"
 
-    te_us_date = yld_rows.get(DEFAULT_COUNTRY_KEY, {}).get("date", "") or "n/a"
+    te_us_date = yld_rows.get(US_KEY, {}).get("date", "") or "n/a"
     te_for_date = yld_rows.get(ckey, {}).get("date", "") or "n/a"
-    oecd_us_year = tax_rows.get(DEFAULT_COUNTRY_KEY, {}).get("year", "n/a")
+    oecd_us_year = tax_rows.get(US_KEY, {}).get("year", "n/a")
     oecd_for_year = tax_rows.get(ckey, {}).get("year", "n/a")
     src = [
         [f"Unlevered beta - {industry}", f"{beta_u:.3f}", origin(beta_man),
@@ -772,15 +761,14 @@ def main():
         ["U.S. 10Y government yield", fmt_pct(rf_us), origin(rf_us_man),
          "Trading Economics", f"{te_us_date} (fetched {yields['fetched_at']})", yields["url"]],
     ]
-    if not is_us:
-        src += [
-            [f"{country} corporate tax rate", fmt_pct(tax_f), origin(tax_f_man),
-             "OECD Corporate Tax Statistics", f"year {oecd_for_year}", OECD_URL],
-            [f"{country} 10Y government yield", fmt_pct(rf_f), origin(rf_f_man),
-             "Trading Economics", f"{te_for_date} (fetched {yields['fetched_at']})", yields["url"]],
-            [f"{country} BBB spread", fmt_pct(sp_f), "Manual" if sp_f_man else "Auto-calculated",
-             "USD spread × (1 + local yield) / (1 + U.S. yield)", "derived", "-"],
-        ]
+    src += [
+        [f"{country} corporate tax rate", fmt_pct(tax_f), origin(tax_f_man),
+         "OECD Corporate Tax Statistics", f"year {oecd_for_year}", OECD_URL],
+        [f"{country} 10Y government yield", fmt_pct(rf_f), origin(rf_f_man),
+         "Trading Economics", f"{te_for_date} (fetched {yields['fetched_at']})", yields["url"]],
+        [f"{country} BBB spread", fmt_pct(sp_f), "Manual" if sp_f_man else "Auto-calculated",
+         "USD spread × (1 + local yield) / (1 + U.S. yield)", "derived", "-"],
+    ]
     src_df = pd.DataFrame(src, columns=["Item", "Value used", "Origin", "Source", "Data date", "URL"])
 
     st.subheader("Data sources & dates")
